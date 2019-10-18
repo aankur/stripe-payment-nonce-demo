@@ -1,5 +1,5 @@
 ### To Start
-####Set environment variables: 
+#### Set environment variables: 
 
 STRIPE_SECRET_KEY (your stripe Secret key)
 
