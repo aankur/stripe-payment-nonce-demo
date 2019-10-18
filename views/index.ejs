@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title><%= title %></title>
+    <link rel='stylesheet' href='/stylesheets/style.css'/>
+    <!--Import Google Icon Font-->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    <!-- Compiled and minified CSS -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/css/materialize.min.css">
+    <!--Let browser know website is optimized for mobile-->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <!-- development version, includes helpful console warnings -->
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+<div class="container">
+    <h3><%= title %></h3>
+    <div id="app">
+        <div class="row">
+            <div class="col s12 m7">
+                <div class="card">
+                    <div class="card-image">
+                        <img src="images/sample-1.jpg">
+                        <span class="card-title">Silent Valley</span>
+                    </div>
+                    <div class="card-content">
+                        <p>Silent Valley for <em>$2</em> only</p>
+                    </div>
+                    <div class="card-action">
+                        <a class="waves-effect waves-light btn-large" :disabled="!displayBillingButton"
+                           v-on:click="initiateBilling">Buy</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div v-if="!displayBillingButton">
+            <div class="row">
+                <div ref="card">
+                </div>
+                <!-- Used to display form errors. -->
+                <div ref="card_errors" role="alert"></div>
+            </div>
+            <div class="row">
+                <div class="input-field col s12">
+                    <input id="customerName" v-model="customerName" type="text" class="validate">
+                    <label for="customerName">Customer Name</label>
+                </div>
+                <div class="input-field col s6">
+                    <input id="address1" v-model="address1" type="text" class="validate">
+                    <label for="address1">Address1</label>
+                </div>
+                <div class="input-field col s4">
+                    <input id="state" v-model="state" type="text" class="validate">
+                    <label for="state">State</label>
+                </div>
+                <div class="input-field col s4">
+                    <input id="zip" v-model="zip" type="text" class="validate">
+                    <label for="zip">Postal Code</label>
+                </div>
+                <div class="input-field col s4">
+                    <input id="city" v-model="city" type="text" class="validate">
+                    <label for="city">City</label>
+                </div>
+                <div class="input-field col s4">
+                    <input id="country" v-model="country" type="text" class="validate">
+                    <label for="country">Country</label>
+                </div>
+                <div class="input-field col s6">
+                    <a class="waves-effect waves-light btn-large" :disabled="!displayPurchaseButton"
+                       v-on:click="initiatePurchase">Purchase</a>
+                </div>
+            </div>
+        </div>
+        <pre v-if="stripeResponseText" class="prettyprint" v-html="stripeResponseText"></pre>
+    </div>
+</div>
+<style>
+    /**
+ * The CSS shown here will not be introduced in the Quickstart guide, but shows
+ * how you can use CSS to style your Element's container.
+ */
+    .StripeElement {
+        box-sizing: border-box;
+
+        height: 40px;
+
+        padding: 10px 12px;
+
+        border: 1px solid transparent;
+        border-radius: 4px;
+        background-color: white;
+
+        box-shadow: 0 1px 3px 0 #e6ebf1;
+        -webkit-transition: box-shadow 150ms ease;
+        transition: box-shadow 150ms ease;
+    }
+
+    .StripeElement--focus {
+        box-shadow: 0 1px 3px 0 #cfd7df;
+    }
+
+    .StripeElement--invalid {
+        border-color: #fa755a;
+    }
+
+    .StripeElement--webkit-autofill {
+        background-color: #fefde5 !important;
+    }
+
+    pre.prettyprint {
+        background-color: #eee;
+        border: 1px solid #555;
+        padding: 5px;
+    }
+
+</style>
+<script type="text/javascript">
+  var style = {
+    base: {
+      color: '#32325d',
+      fontFamily: '"Helvetica Neue", Helvetica, sans-serif',
+      fontSmoothing: 'antialiased',
+      fontSize: '16px',
+      '::placeholder': {
+        color: '#aab7c4'
+      }
+    },
+    invalid: {
+      color: '#fa755a',
+      iconColor: '#fa755a'
+    }
+  };
+  var app = new Vue({
+    el: '#app',
+    data: {
+      displayBillingButton: true,
+      displayPurchaseButton: true,
+      stripeResponseText: '',
+      address1: '',
+      state: '',
+      zip: '',
+      country: '',
+      city: '',
+      customerName: ''
+    },
+    methods: {
+      initiateBilling: async function initiateBilling () {
+        this.displayBillingButton = false;
+        console.log('initiatePurchase');
+        const data = await fetch('/api/billingtoken');
+        const response = await data.json();
+        this.mountStripe(response);
+      },
+      mountStripe: function mountStripe (data) {
+        const stripe = Stripe(data.token);
+        this.Stripe = stripe;
+        const elements = stripe.elements();
+        const cardNumber = elements.create('card', {style: style});
+        cardNumber.mount(this.$refs.card);
+        this.StripeCardNumber = cardNumber;
+
+        cardNumber.addEventListener('change', (event) => {
+          const displayError = this.$refs.card_errors;
+          if (event.error) {
+            displayError.textContent = event.error.message;
+          } else {
+            displayError.textContent = '';
+          }
+        });
+      },
+      initiatePurchase: async function initiatePurchase () {
+        this.displayPurchaseButton = false;
+
+        const tokenData = {
+          name: this.customerName,
+          address_line1: this.address1,
+          address_zip: this.zip,
+          address_city: this.city,
+          address_state: this.state,
+          address_country: this.country
+        };
+        console.log(tokenData);
+        try {
+          const result = await this.Stripe.createToken(this.StripeCardNumber, tokenData);
+          console.log(result);
+          if (result.error) {
+            this.displayPurchaseButton = true;
+            this.$refs.card_errors.textContent = result.error.message;
+          } else {
+            this.completePayment(result);
+          }
+        } catch (e) {
+          console.error(e);
+        }
+      },
+      completePayment: async function completePayment (result) {
+        const billing_address = {
+          name: this.customerName,
+          address_line1: this.address1,
+          address_zip: this.zip,
+          address_city: this.city,
+          address_state: this.state,
+          address_country: this.country
+        };
+        const request = {
+          billing_address,
+          product_id: 'silent-valley-2',
+          payment_token_nonce: result.token.id
+        }
+        console.log(request);
+        const data = await fetch('/api/purchase', {
+          method: 'post',
+          headers: {
+            "Content-type": "application/json; charset=UTF-8"
+          },
+          body: JSON.stringify(request)
+        });
+        const response = await data.json();
+        this.stripeResponseText = PR.prettyPrintOne(JSON.stringify(response, null, 2), 'js');
+        console.log(response);
+      }
+    }
+  });
+</script>
+<!-- Compiled and minified JavaScript -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/materialize/1.0.0/js/materialize.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/google/code-prettify@master/loader/run_prettify.js"></script>
+</body>
+</html>
